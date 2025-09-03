@@ -4,8 +4,8 @@ import os
 import subprocess
 
 # URL твоего backend-сайта
-BACKEND_URL = "http://31.181.211.165:8000/api/commands"
-HEARTBEAT_URL = "http://31.181.211.165:8000/api/hearbeat"
+BACKEND_URL = "http://127.0.0.1:8000/api/commands"
+HEARTBEAT_URL = "http://127.0.0.1:8000/api/heartbeat"
 SERVER_ID = "server1"  # уникальный ID сервера
 AUTH_TOKEN = "secret_token_123"  # защита от левых запросов
 
@@ -39,12 +39,13 @@ if __name__ == "__main__":
     print("Агент запущен...")
     while True:
         check_commands()
-        
+        print('Попытка постучать на сервер')
         # Отправка статуса сервера
         try:
             requests.post(f"{HEARTBEAT_URL}?token={AUTH_TOKEN}", json={"server_id": SERVER_ID})
+            print('Постучал на сервер')
         except:
-            pass
+            print('Не удалось постучать на сервер')
 
         time.sleep(5)  # проверяем каждые 5 секунд
 
