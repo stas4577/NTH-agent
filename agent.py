@@ -4,8 +4,8 @@ import os
 import subprocess
 
 # URL твоего backend-сайта
-BACKEND_URL = "http://127.0.0.1:8000/api/commands"
-HEARTBEAT_URL = "http://127.0.0.1:8000/api/hearbeat"
+BACKEND_URL = "http://31.181.211.165:8000/api/commands"
+HEARTBEAT_URL = "http://31.181.211.165:8000/api/hearbeat"
 SERVER_ID = "server1"  # уникальный ID сервера
 AUTH_TOKEN = "secret_token_123"  # защита от левых запросов
 
