@@ -2,28 +2,52 @@ import requests
 import time
 import os
 import subprocess
+import psutil
+import platform
+import socket
 
 # URL твоего backend-сайта
-BACKEND_URL = "http://127.0.0.1:8000/api/commands"
-HEARTBEAT_URL = "http://127.0.0.1:8000/api/hearbeat"
+BASE_URL = "http://127.0.0.1:8000"
+REGISTER_URL = f"{BASE_URL}/api/register_server"
+CHECK_APPROVAL_URL = f"{BASE_URL}/api/check_approval"
+COMMANDS_URL = f"{BASE_URL}/api/commands"
+HEARTBEAT_URL = f"{BASE_URL}/api/heartbeat"
+
 SERVER_ID = "server1"  # уникальный ID сервера
 AUTH_TOKEN = "secret_token_123"  # защита от левых запросов
 
+# ==========================
+# 🧩 Вспомогательные функции
+# ==========================
+
 def shutdown():
-    os.system("shutdown /s /t 5")  # выключение Windows через 5 секунд
+    os.system("shutdown /s /t 5")
 
 def restart():
-    os.system("shutdown /r /t 5")  # перезапуск Windows
+    os.system("shutdown /r /t 5")
 
 def run_game_server():
-    # Пример: запуск Minecraft сервера
     subprocess.Popen(["java", "-Xmx1024M", "-Xms1024M", "-jar", "server.jar", "nogui"])
+
+def get_system_stats():
+    """Собирает статистику по CPU, RAM, Memory и аптайму."""
+    cpu_load = psutil.cpu_percent(interval=1)
+    memory = psutil.virtual_memory()
+    uptime = time.time() - psutil.boot_time()
+    disk_usage = psutil.disk_usage('/')
+    return {
+        "cpu": cpu_load,
+        "ram_used": round(memory.used / (1024 ** 3), 2),
+        "ram_total": round(memory.total / (1024 ** 3), 2),
+        "uptime": round(uptime / 3600, 1),
+        "disk_used": round(disk_usage.used / (1024 ** 3), 2),
+        "disk_total": round(disk_usage.total / (1024 ** 3), 2),
+        "disk_percent": disk_usage.percent
+    }
 
 def check_commands():
     try:
-        response = requests.get(
-            f"{BACKEND_URL}?server_id={SERVER_ID}&token={AUTH_TOKEN}", timeout=5
-        )
+        response = requests.get(f"{COMMANDS_URL}?server_id={SERVER_ID}&token={AUTH_TOKEN}", timeout=5)
         if response.status_code == 200:
             command = response.json().get("command")
             if command == "shutdown":
@@ -33,18 +57,77 @@ def check_commands():
             elif command == "start_game":
                 run_game_server()
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка при получении команды: {e}")
+
+# ==========================
+# 🧠 Регистрация агента
+# ==========================
+
+def register_server():
+    """Отправляет запрос на регистрацию нового агента"""
+    payload = {
+        "server_id": SERVER_ID,
+        "hostname": socket.gethostname(),
+        "os": platform.system() + " " + platform.release(),
+        "agent_version": "1.0.0",
+    }
+
+    try:
+        response = requests.post(f"{REGISTER_URL}?token={AUTH_TOKEN}", json=payload, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            print("Ответ сервера:", data.get("message", data))
+            return data
+        else:
+            print("Ошибка регистрации:", response.text)
+    except Exception as e:
+        print(f"Ошибка при регистрации: {e}")
+    return None
+
+
+def wait_for_approval():
+    """Проверяет, одобрен ли сервер админом"""
+    print("⏳ Ожидание одобрения администратора...")
+    while True:
+        try:
+            r = requests.get(f"{CHECK_APPROVAL_URL}/{SERVER_ID}?token={AUTH_TOKEN}", timeout=5)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("status") == "approved":
+                    print("✅ Сервер одобрен! Начинаю работу.")
+                    break
+                elif data.get("status") == "rejected":
+                    print("❌ Сервер отклонён администратором.")
+                    exit(0)
+            else:
+                print("Ошибка проверки статуса:", r.text)
+        except Exception as e:
+            print("Ошибка проверки одобрения:", e)
+        time.sleep(10)
+
+# ==========================
+# 🚀 Основной цикл
+# ==========================
 
 if __name__ == "__main__":
     print("Агент запущен...")
+
+    reg = register_server()
+    if not reg:
+        print("Не удалось зарегистрироваться. Завершение.")
+        exit(1)
+
+    wait_for_approval()
+
     while True:
         check_commands()
-        
-        # Отправка статуса сервера
         try:
-            requests.post(f"{HEARTBEAT_URL}?token={AUTH_TOKEN}", json={"server_id": SERVER_ID})
-        except:
-            pass
+            stats = get_system_stats()
+            payload = {"server_id": SERVER_ID, "stats": stats}
+            response = requests.post(f"{HEARTBEAT_URL}?token={AUTH_TOKEN}", json=payload, timeout=5)
+            if response.status_code != 200:
+                print("Ошибка отправки heartbeat:", response.text)
+        except Exception as e:
+            print("Ошибка при отправке heartbeat:", e)
 
-        time.sleep(5)  # проверяем каждые 5 секунд
-
+        time.sleep(5)
