@@ -11,7 +11,7 @@ import os
 
 
 # URL твоего backend-сайта
-BASE_URL = "http://192.168.0.27:8000"
+BASE_URL = "https://nthhost.ru/"
 REGISTER_URL = f"{BASE_URL}/api/register_server"
 CHECK_APPROVAL_URL = f"{BASE_URL}/api/check_approval"
 COMMANDS_URL = f"{BASE_URL}/api/commands"
