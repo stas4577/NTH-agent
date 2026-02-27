@@ -5,15 +5,30 @@ import subprocess
 import psutil
 import platform
 import socket
+import uuid
+import os
+
+
 
 # URL твоего backend-сайта
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://192.168.0.27:8000"
 REGISTER_URL = f"{BASE_URL}/api/register_server"
 CHECK_APPROVAL_URL = f"{BASE_URL}/api/check_approval"
 COMMANDS_URL = f"{BASE_URL}/api/commands"
 HEARTBEAT_URL = f"{BASE_URL}/api/heartbeat"
 
-SERVER_ID = "server1"  # уникальный ID сервера
+
+file_path = "agent_id.txt"
+if os.path.exists(file_path):
+    with open(file_path, 'r') as file:
+        SERVER_ID = file.read().strip()
+else:
+    SERVER_ID = str(uuid.uuid4())
+    with open(file_path, 'w') as file:
+        file.write(SERVER_ID)
+    
+
+
 AUTH_TOKEN = "secret_token_123"  # защита от левых запросов
 
 # ==========================
@@ -111,6 +126,7 @@ def wait_for_approval():
 
 if __name__ == "__main__":
     print("Агент запущен...")
+    print(f"server-id = {SERVER_ID}")
 
     reg = register_server()
     if not reg:
